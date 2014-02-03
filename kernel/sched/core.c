@@ -6806,7 +6806,11 @@ void __init sched_init(void)
 	list_add(&root_task_group.list, &task_groups);
 	INIT_LIST_HEAD(&root_task_group.children);
 	INIT_LIST_HEAD(&root_task_group.siblings);
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	autogroup_init(&GET_INIT_TASK);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	autogroup_init(&init_task);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 #endif /* CONFIG_CGROUP_SCHED */
 
@@ -6886,10 +6890,18 @@ void __init sched_init(void)
 		atomic_set(&rq->nr_iowait, 0);
 	}
 
-	set_load_weight(&init_task);
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	set_load_weight(&GET_INIT_TASK);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
+ 	set_load_weight(&init_task);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
-	INIT_HLIST_HEAD(&init_task.preempt_notifiers);
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	INIT_HLIST_HEAD(&GET_INIT_TASK.preempt_notifiers);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
+ 	INIT_HLIST_HEAD(&init_task.preempt_notifiers);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 #endif
 
 	/*

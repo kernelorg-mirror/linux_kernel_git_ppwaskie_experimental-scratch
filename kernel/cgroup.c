@@ -4558,7 +4558,11 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	/* At system boot, before all subsystems have been
 	 * registered, no tasks have been forked, so we don't
 	 * need to invoke fork callbacks here. */
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	BUG_ON(!list_empty(&GET_INIT_TASK.tasks));
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	BUG_ON(!list_empty(&init_task.tasks));
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 	BUG_ON(online_css(css));
 
@@ -4760,7 +4764,11 @@ int __init cgroup_init_early(void)
 	css_set_count = 1;
 	init_cgroup_root(&cgroup_dummy_root);
 	cgroup_root_count = 1;
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	RCU_INIT_POINTER(GET_INIT_TASK.cgroups, &init_css_set);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	RCU_INIT_POINTER(init_task.cgroups, &init_css_set);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 	init_cgrp_cset_link.cset = &init_css_set;
 	init_cgrp_cset_link.cgrp = cgroup_dummy_top;

@@ -2295,7 +2295,11 @@ static void selinux_bprm_committing_creds(struct linux_binprm *bprm)
 		task_lock(current);
 		for (i = 0; i < RLIM_NLIMITS; i++) {
 			rlim = current->signal->rlim + i;
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+			initrlim = GET_INIT_TASK.signal->rlim + i;
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 			initrlim = init_task.signal->rlim + i;
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 			rlim->rlim_cur = min(rlim->rlim_max, initrlim->rlim_cur);
 		}
 		task_unlock(current);

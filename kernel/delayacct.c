@@ -35,7 +35,11 @@ __setup("nodelayacct", delayacct_setup_disable);
 void delayacct_init(void)
 {
 	delayacct_cache = KMEM_CACHE(task_delay_info, SLAB_PANIC);
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	delayacct_tsk_init(&GET_INIT_TASK);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	delayacct_tsk_init(&init_task);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 }
 
 void __delayacct_tsk_init(struct task_struct *tsk)

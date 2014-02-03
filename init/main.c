@@ -507,7 +507,11 @@ asmlinkage void __init start_kernel(void)
 	page_address_init();
 	pr_notice("%s", linux_banner);
 	setup_arch(&command_line);
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	mm_init_owner(&init_mm, &GET_INIT_TASK);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	mm_init_owner(&init_mm, &init_task);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	mm_init_cpumask(&init_mm);
 	setup_command_line(command_line);
 	setup_nr_cpu_ids();

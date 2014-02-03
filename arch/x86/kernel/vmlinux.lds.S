@@ -126,6 +126,7 @@ SECTIONS
 		_sdata = .;
 
 		/* init_task */
+		/* pjw - TODO - this should be big enough for the new struct */
 		INIT_TASK_DATA(THREAD_SIZE)
 
 #ifdef CONFIG_X86_32
@@ -308,6 +309,10 @@ SECTIONS
 	.bss : AT(ADDR(.bss) - LOAD_OFFSET) {
 		__bss_start = .;
 		*(.bss..page_aligned)
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+		/* pjw - TODO - is PAGE_SIZE sufficient or overkill? */
+		INIT_STACK_BSS(PAGE_SIZE)
+#endif
 		*(.bss)
 		. = ALIGN(PAGE_SIZE);
 		__bss_stop = .;

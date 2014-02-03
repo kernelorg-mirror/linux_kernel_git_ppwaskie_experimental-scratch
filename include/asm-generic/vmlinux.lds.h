@@ -539,6 +539,12 @@
 		*(COMMON)						\
 	}
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+#define INIT_STACK_BSS(align)						\
+	. = ALIGN(align);						\
+	*(.bss..init_stack)
+#endif
+
 /*
  * DWARF debug sections.
  * Symbols in the DWARF debugging sections are relative to

@@ -1086,6 +1086,19 @@ struct desc_ptr debug_idt_descr = { NR_VECTORS * 16 - 1,
 DEFINE_PER_CPU_FIRST(union irq_stack_union,
 		     irq_stack_union) __aligned(PAGE_SIZE) __visible;
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+/*
+ * The following four percpu variables are hot.  Align current_task to
+ * cacheline size such that all four fall in the same cacheline.
+ */
+DEFINE_PER_CPU(struct task_struct *, current_task) ____cacheline_aligned =
+	&GET_INIT_TASK;
+EXPORT_PER_CPU_SYMBOL(current_task);
+
+DEFINE_PER_CPU(unsigned long, kernel_stack) =
+	(unsigned long)&init_stack;
+EXPORT_PER_CPU_SYMBOL(kernel_stack);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 /*
  * The following four percpu variables are hot.  Align current_task to
  * cacheline size such that all four fall in the same cacheline.
@@ -1097,6 +1110,7 @@ EXPORT_PER_CPU_SYMBOL(current_task);
 DEFINE_PER_CPU(unsigned long, kernel_stack) =
 	(unsigned long)&init_thread_union - KERNEL_STACK_OFFSET + THREAD_SIZE;
 EXPORT_PER_CPU_SYMBOL(kernel_stack);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 DEFINE_PER_CPU(char *, irq_stack_ptr) =
 	init_per_cpu_var(irq_stack_union.irq_stack) + IRQ_STACK_SIZE - 64;

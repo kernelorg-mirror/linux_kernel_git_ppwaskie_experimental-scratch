@@ -2379,6 +2379,19 @@ config X86_X32
 	  elf32_x86_64 support enabled to compile a kernel with this
 	  option set.
 
+config ARCH_TASK_THREAD_MERGED
+	bool "task and thread merged scheduler model"
+	---help---
+	  This option changes the method of how a thread_info structure
+	  is allocated.  Instead of locating the thread_info inside
+	  the current process stack, the thread_info is now allocated
+	  with the task_struct associated with the thread.
+
+	  This allows better security since the thread_info isn't in an
+	  exact known location.  It can also increase efficiency when
+	  looking up a task from a thread, since it can be done without
+	  offsets from the stack.
+
 config COMPAT
 	def_bool y
 	depends on IA32_EMULATION || X86_X32

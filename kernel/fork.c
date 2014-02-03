@@ -277,10 +277,19 @@ void __init fork_init(unsigned long mempages)
 	if (max_threads < 20)
 		max_threads = 20;
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	init_task_thread.task.signal->rlim[RLIMIT_NPROC].rlim_cur =
+								max_threads/2;
+	init_task_thread.task.signal->rlim[RLIMIT_NPROC].rlim_max =
+								max_threads/2;
+	init_task_thread.task.signal->rlim[RLIMIT_SIGPENDING] =
+		init_task_thread.task.signal->rlim[RLIMIT_NPROC];
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	init_task.signal->rlim[RLIMIT_NPROC].rlim_cur = max_threads/2;
 	init_task.signal->rlim[RLIMIT_NPROC].rlim_max = max_threads/2;
 	init_task.signal->rlim[RLIMIT_SIGPENDING] =
 		init_task.signal->rlim[RLIMIT_NPROC];
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 }
 
 int __attribute__((weak)) arch_dup_task_struct(struct task_struct *dst,
@@ -1465,7 +1474,11 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 			p->signal->leader_pid = pid;
 			p->signal->tty = tty_kref_get(current->signal->tty);
 			list_add_tail(&p->sibling, &p->real_parent->children);
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+			list_add_tail_rcu(&p->tasks, &GET_INIT_TASK.tasks);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 			list_add_tail_rcu(&p->tasks, &init_task.tasks);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 			attach_pid(p, PIDTYPE_PGID);
 			attach_pid(p, PIDTYPE_SID);
 			__this_cpu_inc(process_counts);

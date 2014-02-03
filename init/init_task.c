@@ -14,6 +14,7 @@
 static struct signal_struct init_signals = INIT_SIGNALS(init_signals);
 static struct sighand_struct init_sighand = INIT_SIGHAND(init_sighand);
 
+#ifndef CONFIG_ARCH_TASK_THREAD_MERGED
 /* Initial task structure */
 struct task_struct init_task = INIT_TASK(init_task);
 EXPORT_SYMBOL(init_task);
@@ -24,3 +25,16 @@ EXPORT_SYMBOL(init_task);
  */
 union thread_union init_thread_union __init_task_data =
 	{ INIT_THREAD_INFO(init_task) };
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
+/* Initial stack */
+/* pjw - base this off of existing stack size, may change later */
+struct task_thread_stack init_first_stack __init_stack_bss;
+
+EXPORT_SYMBOL(init_first_stack);
+
+/* Initial thread/task structure */
+struct task_thread_struct init_task_thread __init_task_data =
+					     INIT_TASK_THREAD(init_task_thread);
+
+EXPORT_SYMBOL(init_task_thread);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */

@@ -55,8 +55,12 @@ struct thread_info {
 	},					\
 }
 
+#ifndef CONFIG_ARCH_TASK_THREAD_MERGED
 #define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
+#else /* !CONFIG_ARCH_TASK_THREAD_MERGED */
+#define init_stack		(init_first_stack.stack)
+#endif /* !CONFIG_ARCH_TASK_THREAD_MERGED */
 
 #else /* !__ASSEMBLY__ */
 

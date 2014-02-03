@@ -77,7 +77,11 @@ struct pid_namespace init_pid_ns = {
 	.last_pid = 0,
 	.nr_hashed = PIDNS_HASH_ADDING,
 	.level = 0,
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	.child_reaper = &GET_INIT_TASK,
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	.child_reaper = &init_task,
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	.user_ns = &init_user_ns,
 	.proc_inum = PROC_PID_INIT_INO,
 };

@@ -696,8 +696,13 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 	show_fault_oops(regs, error_code, address);
 
 	stackend = end_of_stack(tsk);
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	if (tsk != &GET_INIT_TASK && *stackend != STACK_END_MAGIC)
+		printk(KERN_EMERG "Thread overran stack, or stack corrupted\n");
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	if (tsk != &init_task && *stackend != STACK_END_MAGIC)
 		printk(KERN_EMERG "Thread overran stack, or stack corrupted\n");
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 	tsk->thread.cr2		= address;
 	tsk->thread.trap_nr	= X86_TRAP_PF;

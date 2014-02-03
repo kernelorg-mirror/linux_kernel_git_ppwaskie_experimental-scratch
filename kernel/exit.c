@@ -536,7 +536,11 @@ static struct task_struct *find_new_reaper(struct task_struct *father)
 		 * http://marc.info/?l=linux-kernel&m=131385460420380
 		 */
 		for (reaper = father->real_parent;
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+		     reaper != &GET_INIT_TASK;
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 		     reaper != &init_task;
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 		     reaper = reaper->real_parent) {
 			if (same_thread_group(reaper, pid_ns->child_reaper))
 				break;

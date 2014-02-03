@@ -2759,7 +2759,11 @@ static void __init init_mount_tree(void)
 	if (IS_ERR(ns))
 		panic("Can't allocate initial namespace");
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_INIT_TASK.nsproxy->mnt_ns = ns;
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	init_task.nsproxy->mnt_ns = ns;
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	get_mnt_ns(ns);
 
 	root.mnt = mnt;

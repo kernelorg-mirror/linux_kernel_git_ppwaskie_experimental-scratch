@@ -312,8 +312,13 @@ ENDPROC(start_cpu0)
 	GLOBAL(initial_gs)
 	.quad	INIT_PER_CPU_VAR(irq_stack_union)
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GLOBAL(stack_start)
+	.quad  init_first_stack
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	GLOBAL(stack_start)
 	.quad  init_thread_union+THREAD_SIZE-8
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	.word  0
 	__FINITDATA
 

@@ -2111,10 +2111,21 @@ void yield(void);
  */
 extern struct exec_domain	default_exec_domain;
 
+#ifndef CONFIG_ARCH_TASK_THREAD_MERGED
 union thread_union {
 	struct thread_info thread_info;
 	unsigned long stack[THREAD_SIZE/sizeof(long)];
 };
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
+struct task_thread_struct {
+	struct task_struct task;
+	struct thread_info thread_info;
+};
+
+struct task_thread_stack {
+	unsigned long stack[THREAD_SIZE/sizeof(long)];
+};
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 #ifndef __HAVE_ARCH_KSTACK_END
 static inline int kstack_end(void *addr)
@@ -2126,8 +2137,15 @@ static inline int kstack_end(void *addr)
 }
 #endif
 
+#ifndef CONFIG_ARCH_TASK_THREAD_MERGED
 extern union thread_union init_thread_union;
 extern struct task_struct init_task;
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
+extern struct task_thread_struct init_task_thread;
+extern struct task_thread_stack init_first_stack;
+
+#define GET_INIT_TASK	(init_task_thread.task)
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 extern struct   mm_struct init_mm;
 
@@ -2337,8 +2355,13 @@ static inline unsigned long wait_task_inactive(struct task_struct *p,
 #define next_task(p) \
 	list_entry_rcu((p)->tasks.next, struct task_struct, tasks)
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+#define for_each_process(p) \
+	for (p = &GET_INIT_TASK ; (p = next_task(p)) != &GET_INIT_TASK ; )
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 #define for_each_process(p) \
 	for (p = &init_task ; (p = next_task(p)) != &init_task ; )
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 extern bool current_is_single_threaded(void);
 
@@ -2346,8 +2369,13 @@ extern bool current_is_single_threaded(void);
  * Careful: do_each_thread/while_each_thread is a double loop so
  *          'break' will not work as expected - use goto instead.
  */
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+#define do_each_thread(g, t) \
+	for (g = t = &GET_INIT_TASK ; (g = t = next_task(g)) != &GET_INIT_TASK ; ) do
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 #define do_each_thread(g, t) \
 	for (g = t = &init_task ; (g = t = next_task(g)) != &init_task ; ) do
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 #define while_each_thread(g, t) \
 	while ((t = next_thread(t)) != g)
