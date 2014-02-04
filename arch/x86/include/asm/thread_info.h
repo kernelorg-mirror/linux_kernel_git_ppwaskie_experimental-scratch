@@ -204,21 +204,33 @@ static inline struct thread_info *current_thread_info(void)
  */
 #ifndef __ASSEMBLY__
 DECLARE_PER_CPU(unsigned long, kernel_stack);
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+DECLARE_PER_CPU(struct thread_info *, current_ti);
+#endif
 
 static inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	ti = (void *)(this_cpu_read_stable(current_ti));
+#else
 	ti = (void *)(this_cpu_read_stable(kernel_stack) +
 		      KERNEL_STACK_OFFSET - THREAD_SIZE);
+#endif
 	return ti;
 }
 
 #else /* !__ASSEMBLY__ */
 
 /* how to get the thread information struct from ASM */
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+#define GET_THREAD_INFO(reg) \
+	movq PER_CPU_VAR(current_ti),reg
+#else
 #define GET_THREAD_INFO(reg) \
 	movq PER_CPU_VAR(kernel_stack),reg ; \
 	subq $(THREAD_SIZE-KERNEL_STACK_OFFSET),reg
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 /*
  * Same if PER_CPU_VAR(kernel_stack) is, perhaps with some offset, already in

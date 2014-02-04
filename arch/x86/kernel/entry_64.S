@@ -613,9 +613,15 @@ GLOBAL(system_call_after_swapgs)
 	ENABLE_INTERRUPTS(CLBR_NONE)
 	SAVE_ARGS 8,0
 	movq  %rax,ORIG_RAX-ARGOFFSET(%rsp)
+	/* pjw XXX - probably drop this? */
 	movq  %rcx,RIP-ARGOFFSET(%rsp)
 	CFI_REL_OFFSET rip,RIP-ARGOFFSET
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_THREAD_INFO(%rcx)
+	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%rcx)
+#else
 	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
+#endif
 	jnz tracesys
 system_call_fastpath:
 #if __SYSCALL_MASK == ~0
@@ -639,7 +645,12 @@ sysret_check:
 	LOCKDEP_SYS_EXIT
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_THREAD_INFO(%rcx)
+	movl TI_flags(%rcx),%edx
+#else
 	movl TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET),%edx
+#endif
 	andl %edi,%edx
 	jnz  sysret_careful
 	CFI_REMEMBER_STATE
@@ -722,7 +733,12 @@ sysret_audit:
 	/* Do syscall tracing */
 tracesys:
 #ifdef CONFIG_AUDITSYSCALL
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_THREAD_INFO(%rcx)
+	testl $(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT),TI_flags(%rcx)
+#else
 	testl $(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT),TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
+#endif
 	jz auditsys
 #endif
 	SAVE_REST

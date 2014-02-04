@@ -135,7 +135,12 @@ ENTRY(ia32_sysenter_target)
 	CFI_REL_OFFSET rsp,0
 	pushfq_cfi
 	/*CFI_REL_OFFSET rflags,0*/
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_THREAD_INFO(%rcx)
+	movl	TI_sysenter_return(%rcx),%r10d
+#else
 	movl	TI_sysenter_return+THREAD_INFO(%rsp,3*8-KERNEL_STACK_OFFSET),%r10d
+#endif
 	CFI_REGISTER rip,r10
 	pushq_cfi $__USER32_CS
 	/*CFI_REL_OFFSET cs,0*/
@@ -151,8 +156,14 @@ ENTRY(ia32_sysenter_target)
 1:	movl	(%rbp),%ebp
 	_ASM_EXTABLE(1b,ia32_badarg)
 	ASM_CLAC
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_THREAD_INFO(%rcx)
+	orl     $TS_COMPAT,TI_status(%rcx)
+	testl   $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%rcx)
+#else
 	orl     $TS_COMPAT,TI_status+THREAD_INFO(%rsp,RIP-ARGOFFSET)
 	testl   $_TIF_WORK_SYSCALL_ENTRY,TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
+#endif
 	CFI_REMEMBER_STATE
 	jnz  sysenter_tracesys
 	cmpq	$(IA32_NR_syscalls-1),%rax
@@ -164,10 +175,20 @@ sysenter_dispatch:
 	movq	%rax,RAX-ARGOFFSET(%rsp)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_THREAD_INFO(%rcx)
+	testl	$_TIF_ALLWORK_MASK,TI_flags(%rcx)
+#else
 	testl	$_TIF_ALLWORK_MASK,TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
+#endif
 	jnz	sysexit_audit
 sysexit_from_sys_call:
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_THREAD_INFO(%rcx)
+	andl    $~TS_COMPAT,TI_status(%rcx)
+#else
 	andl    $~TS_COMPAT,TI_status+THREAD_INFO(%rsp,RIP-ARGOFFSET)
+#endif
 	/* clear IF, that popfq doesn't enable interrupts early */
 	andl  $~0x200,EFLAGS-R11(%rsp) 
 	movl	RIP-R11(%rsp),%edx		/* User %eip */
@@ -204,7 +225,12 @@ sysexit_from_sys_call:
 	.endm
 
 	.macro auditsys_exit exit
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_THREAD_INFO(%rcx)
+	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT),TI_flags(%rcx)
+#else
 	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT),TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
+#endif
 	jnz ia32_ret_from_sys_call
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_NONE)
@@ -219,7 +245,12 @@ sysexit_from_sys_call:
 	movl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT),%edi
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_THREAD_INFO(%rcx)
+	testl %edi,TI_flags(%rcx)
+#else
 	testl %edi,TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
+#endif
 	jz \exit
 	CLEAR_RREGS -ARGOFFSET
 	jmp int_with_check
@@ -237,7 +268,12 @@ sysexit_audit:
 
 sysenter_tracesys:
 #ifdef CONFIG_AUDITSYSCALL
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_THREAD_INFO(%rcx)
+	testl	$(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT),TI_flags(%rcx)
+#else
 	testl	$(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT),TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
+#endif
 	jz	sysenter_auditsys
 #endif
 	SAVE_REST
@@ -308,8 +344,14 @@ ENTRY(ia32_cstar_target)
 1:	movl	(%r8),%r9d
 	_ASM_EXTABLE(1b,ia32_badarg)
 	ASM_CLAC
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_THREAD_INFO(%rcx)
+	orl     $TS_COMPAT,TI_status(%rcx)
+	testl   $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%rcx)
+#else
 	orl     $TS_COMPAT,TI_status+THREAD_INFO(%rsp,RIP-ARGOFFSET)
 	testl   $_TIF_WORK_SYSCALL_ENTRY,TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
+#endif
 	CFI_REMEMBER_STATE
 	jnz   cstar_tracesys
 	cmpq $IA32_NR_syscalls-1,%rax
@@ -321,10 +363,20 @@ cstar_dispatch:
 	movq %rax,RAX-ARGOFFSET(%rsp)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_THREAD_INFO(%rcx)
+	testl $_TIF_ALLWORK_MASK,TI_flags(%rcx)
+#else
 	testl $_TIF_ALLWORK_MASK,TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
+#endif
 	jnz sysretl_audit
 sysretl_from_sys_call:
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_THREAD_INFO(%rcx)
+	andl $~TS_COMPAT,TI_status(%rcx)
+#else
 	andl $~TS_COMPAT,TI_status+THREAD_INFO(%rsp,RIP-ARGOFFSET)
+#endif
 	RESTORE_ARGS 0,-ARG_SKIP,0,0,0
 	movl RIP-ARGOFFSET(%rsp),%ecx
 	CFI_REGISTER rip,rcx
@@ -352,7 +404,12 @@ sysretl_audit:
 
 cstar_tracesys:
 #ifdef CONFIG_AUDITSYSCALL
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_THREAD_INFO(%rcx)
+	testl $(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT),TI_flags(%rcx)
+#else
 	testl $(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT),TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
+#endif
 	jz cstar_auditsys
 #endif
 	xchgl %r9d,%ebp
@@ -418,8 +475,14 @@ ENTRY(ia32_syscall)
 	/* note the registers are not zero extended to the sf.
 	   this could be a problem. */
 	SAVE_ARGS 0,1,0
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	GET_THREAD_INFO(%rcx)
+	orl $TS_COMPAT,TI_status(%rcx)
+	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%rcx)
+#else
 	orl $TS_COMPAT,TI_status+THREAD_INFO(%rsp,RIP-ARGOFFSET)
 	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
+#endif
 	jnz ia32_tracesys
 	cmpq $(IA32_NR_syscalls-1),%rax
 	ja ia32_badsys

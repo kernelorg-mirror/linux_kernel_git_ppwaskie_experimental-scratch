@@ -1095,6 +1095,10 @@ DEFINE_PER_CPU(struct task_struct *, current_task) ____cacheline_aligned =
 	&GET_INIT_TASK;
 EXPORT_PER_CPU_SYMBOL(current_task);
 
+DEFINE_PER_CPU(struct thread_info *, current_ti) ____cacheline_aligned =
+	&init_task_thread.thread_info;
+EXPORT_PER_CPU_SYMBOL(current_ti);
+
 DEFINE_PER_CPU(unsigned long, kernel_stack) =
 	(unsigned long)&init_stack;
 EXPORT_PER_CPU_SYMBOL(kernel_stack);
