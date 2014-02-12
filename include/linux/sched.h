@@ -2520,7 +2520,19 @@ static inline void threadgroup_unlock(struct task_struct *tsk) {}
 
 #ifndef __HAVE_THREAD_FUNCTIONS
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+static inline struct thread_info *task_thread_info(const struct task_struct *task)
+{
+	struct task_thread_struct *tsk_ti;
+
+	tsk_ti = container_of(task, struct task_thread_struct, task);
+
+	return &tsk_ti->thread_info;
+}
+#else
 #define task_thread_info(task)	((struct thread_info *)(task)->stack)
+// change ->stack member to audit locations
+#endif
 #define task_stack_page(task)	((task)->stack)
 
 static inline void setup_thread_stack(struct task_struct *p, struct task_struct *org)
@@ -2532,6 +2544,7 @@ static inline void setup_thread_stack(struct task_struct *p, struct task_struct 
 static inline unsigned long *end_of_stack(struct task_struct *p)
 {
 	return (unsigned long *)(task_thread_info(p) + 1);
+/* XXX - fixme here too */
 }
 
 #endif

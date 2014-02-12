@@ -1147,6 +1147,10 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 					int trace)
 {
 	int retval;
+	// XXX - should be struct task_thread_struct *p
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	struct thread_info *ti;
+#endif
 	struct task_struct *p;
 
 	if ((clone_flags & (CLONE_NEWNS|CLONE_FS)) == (CLONE_NEWNS|CLONE_FS))
@@ -1201,6 +1205,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	if (!p)
 		goto fork_out;
 
+printk(KERN_INFO "pjw: dup_task_struct() ok so far\n");
 	ftrace_graph_init_task(p);
 	get_seccomp_filter(p);
 
@@ -1232,8 +1237,16 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	if (nr_threads >= max_threads)
 		goto bad_fork_cleanup_count;
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+printk(KERN_INFO "pjw: before task_thread_info()\n");
+	ti = task_thread_info(p);
+	/* XXX - fixme accessors please */
+	if (!try_module_get(ti->exec_domain->module))
+		goto bad_fork_cleanup_count;
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	if (!try_module_get(task_thread_info(p)->exec_domain->module))
 		goto bad_fork_cleanup_count;
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 	delayacct_tsk_init(p);	/* Must remain after dup_task_struct() */
 	copy_flags(clone_flags, p);

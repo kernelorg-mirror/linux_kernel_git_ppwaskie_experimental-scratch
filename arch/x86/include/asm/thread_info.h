@@ -226,17 +226,19 @@ static inline struct thread_info *current_thread_info(void)
 #ifdef CONFIG_ARCH_TASK_THREAD_MERGED
 #define GET_THREAD_INFO(reg) \
 	movq PER_CPU_VAR(current_ti),reg
+
+	/* no THREAD_INFO macro needed here */
 #else
 #define GET_THREAD_INFO(reg) \
 	movq PER_CPU_VAR(kernel_stack),reg ; \
 	subq $(THREAD_SIZE-KERNEL_STACK_OFFSET),reg
-#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 /*
  * Same if PER_CPU_VAR(kernel_stack) is, perhaps with some offset, already in
  * a certain register (to be used in assembler memory operands).
  */
 #define THREAD_INFO(reg, off) KERNEL_STACK_OFFSET+(off)-THREAD_SIZE(reg)
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 #endif
 

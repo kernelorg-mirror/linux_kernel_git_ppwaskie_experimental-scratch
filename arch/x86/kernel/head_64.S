@@ -314,7 +314,7 @@ ENDPROC(start_cpu0)
 
 #ifdef CONFIG_ARCH_TASK_THREAD_MERGED
 	GLOBAL(stack_start)
-	.quad  init_first_stack
+	.quad  init_first_stack+THREAD_SIZE-8
 #else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	GLOBAL(stack_start)
 	.quad  init_thread_union+THREAD_SIZE-8
