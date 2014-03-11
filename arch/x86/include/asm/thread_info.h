@@ -23,7 +23,9 @@ struct exec_domain;
 #include <linux/atomic.h>
 
 struct thread_info {
+#ifndef CONFIG_ARCH_TASK_THREAD_MERGED
 	struct task_struct	*task;		/* main task structure */
+#endif
 	struct exec_domain	*exec_domain;	/* execution domain */
 	__u32			flags;		/* low level flags */
 	__u32			status;		/* thread synchronous flags */
@@ -42,6 +44,19 @@ struct thread_info {
 	unsigned int		uaccess_err:1;	/* uaccess failed */
 };
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+#define INIT_THREAD_INFO(tsk)			\
+{						\
+	.exec_domain	= &default_exec_domain,	\
+	.flags		= 0,			\
+	.cpu		= 0,			\
+	.saved_preempt_count = INIT_PREEMPT_COUNT,	\
+	.addr_limit	= KERNEL_DS,		\
+	.restart_block = {			\
+		.fn = do_no_restart_syscall,	\
+	},					\
+}
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 #define INIT_THREAD_INFO(tsk)			\
 {						\
 	.task		= &tsk,			\
@@ -54,6 +69,7 @@ struct thread_info {
 		.fn = do_no_restart_syscall,	\
 	},					\
 }
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 #ifndef CONFIG_ARCH_TASK_THREAD_MERGED
 #define init_thread_info	(init_thread_union.thread_info)

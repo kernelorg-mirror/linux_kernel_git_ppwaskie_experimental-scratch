@@ -49,8 +49,13 @@ default_handler(int segment, struct pt_regs *regp)
 {
 	set_personality(0);
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	if (get_ti_exec_domain(current_thread_info())->handler != default_handler)
+		get_ti_exec_domain(current_thread_info())->handler(segment, regp);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	if (current_thread_info()->exec_domain->handler != default_handler)
 		current_thread_info()->exec_domain->handler(segment, regp);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	else
 		send_sig(SIGSEGV, current, 1);
 }
@@ -136,9 +141,17 @@ unregister:
 
 int __set_personality(unsigned int personality)
 {
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	struct exec_domain *oep = get_ti_exec_domain(current_thread_info());
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	struct exec_domain *oep = current_thread_info()->exec_domain;
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	*get_ti_exec_domain(current_thread_info()) = *lookup_exec_domain(personality);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	current_thread_info()->exec_domain = lookup_exec_domain(personality);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	current->personality = personality;
 	module_put(oep->module);
 

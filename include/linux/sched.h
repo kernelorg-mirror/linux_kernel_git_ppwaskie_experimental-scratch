@@ -2529,16 +2529,37 @@ static inline struct thread_info *task_thread_info(const struct task_struct *tas
 
 	return &tsk_ti->thread_info;
 }
+
+static inline struct task_struct *thread_info_task(const struct thread_info *ti)
+{
+	struct task_thread_struct *tsk_ti;
+
+	tsk_ti = container_of(ti, struct task_thread_struct, thread_info);
+
+	return &tsk_ti->task;
+}
+static inline struct exec_domain *get_task_exec_domain(const struct task_struct *task)
+{
+	return task_thread_info(task)->exec_domain;
+}
+
+static inline struct exec_domain *get_ti_exec_domain(const struct thread_info *ti)
+{
+	return ti->exec_domain;
+}
 #else
 #define task_thread_info(task)	((struct thread_info *)(task)->stack)
-// change ->stack member to audit locations
-#endif
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 #define task_stack_page(task)	((task)->stack)
 
 static inline void setup_thread_stack(struct task_struct *p, struct task_struct *org)
 {
 	*task_thread_info(p) = *task_thread_info(org);
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	*thread_info_task(task_thread_info(p)) = *p;
+#else
 	task_thread_info(p)->task = p;
+#endif
 }
 
 static inline unsigned long *end_of_stack(struct task_struct *p)

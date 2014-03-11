@@ -806,7 +806,11 @@ void do_exit(long code)
 	if (group_dead)
 		disassociate_ctty(1);
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	module_put(get_task_exec_domain(tsk)->module);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	module_put(task_thread_info(tsk)->exec_domain->module);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 	proc_exit_connector(tsk);
 

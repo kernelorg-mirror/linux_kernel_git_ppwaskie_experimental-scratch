@@ -1147,10 +1147,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 					int trace)
 {
 	int retval;
-	// XXX - should be struct task_thread_struct *p
-#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
-	struct thread_info *ti;
-#endif
 	struct task_struct *p;
 
 	if ((clone_flags & (CLONE_NEWNS|CLONE_FS)) == (CLONE_NEWNS|CLONE_FS))
@@ -1239,9 +1235,7 @@ printk(KERN_INFO "pjw: dup_task_struct() ok so far\n");
 
 #ifdef CONFIG_ARCH_TASK_THREAD_MERGED
 printk(KERN_INFO "pjw: before task_thread_info()\n");
-	ti = task_thread_info(p);
-	/* XXX - fixme accessors please */
-	if (!try_module_get(ti->exec_domain->module))
+	if (!try_module_get(get_task_exec_domain(p)->module))
 		goto bad_fork_cleanup_count;
 #else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	if (!try_module_get(task_thread_info(p)->exec_domain->module))
@@ -1556,7 +1550,11 @@ bad_fork_cleanup_cgroup:
 		threadgroup_change_end(current);
 	cgroup_exit(p, 0);
 	delayacct_tsk_free(p);
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	module_put(get_task_exec_domain(p)->module);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	module_put(task_thread_info(p)->exec_domain->module);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 bad_fork_cleanup_count:
 	atomic_dec(&p->cred->user->processes);
 	exit_creds(p);

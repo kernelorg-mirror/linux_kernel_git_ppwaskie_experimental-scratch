@@ -49,7 +49,11 @@ print_ftrace_graph_addr(unsigned long addr, void *data,
 	if (addr != (unsigned long)return_to_handler)
 		return;
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	task = thread_info_task(tinfo);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	task = tinfo->task;
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	index = task->curr_ret_stack;
 
 	if (!task->ret_stack || index < *graph)
