@@ -2564,8 +2564,11 @@ static inline void setup_thread_stack(struct task_struct *p, struct task_struct 
 
 static inline unsigned long *end_of_stack(struct task_struct *p)
 {
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	return (unsigned long *)(p->stack + 1);
+#else
 	return (unsigned long *)(task_thread_info(p) + 1);
-/* XXX - fixme here too */
+#endif
 }
 
 #endif

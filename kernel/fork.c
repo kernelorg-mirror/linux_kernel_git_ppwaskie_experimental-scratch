@@ -120,6 +120,19 @@ void __weak arch_release_task_struct(struct task_struct *tsk)
 }
 
 #ifndef CONFIG_ARCH_TASK_STRUCT_ALLOCATOR
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+static struct kmem_cache *task_thread_struct_cachep;
+
+static inline struct task_thread_struct *alloc_task_thread_struct_node(int node)
+{
+	return kmem_cache_alloc_node(task_thread_struct_cachep, GFP_KERNEL, node);
+}
+
+static inline void free_task_thread_struct(struct task_thread_struct *tsk_ti)
+{
+	kmem_cache_free(task_thread_struct_cachep, tsk_ti);
+}
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 static struct kmem_cache *task_struct_cachep;
 
 static inline struct task_struct *alloc_task_struct_node(int node)
@@ -131,6 +144,7 @@ static inline void free_task_struct(struct task_struct *tsk)
 {
 	kmem_cache_free(task_struct_cachep, tsk);
 }
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 #endif
 
 void __weak arch_release_thread_info(struct thread_info *ti)
@@ -138,7 +152,20 @@ void __weak arch_release_thread_info(struct thread_info *ti)
 }
 
 #ifndef CONFIG_ARCH_THREAD_INFO_ALLOCATOR
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+static struct kmem_cache *task_thread_stack_cache;
 
+static struct task_thread_stack *alloc_task_thread_stack_node(int node)
+{
+	/* XXX - something other than GFP_KERNEL? */
+	return kmem_cache_alloc_node(task_thread_stack_cache, GFP_KERNEL, node);
+}
+
+static void free_task_thread_stack(struct task_thread_stack *stack)
+{
+	kmem_cache_free(task_thread_stack_cache, stack);
+}
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 /*
  * Allocate pages if THREAD_SIZE is >= PAGE_SIZE, otherwise use a
  * kmemcache based allocator.
@@ -178,6 +205,7 @@ void thread_info_cache_init(void)
 	BUG_ON(thread_info_cache == NULL);
 }
 # endif
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 #endif
 
 /* SLAB cache for signal_struct structures (tsk->signal) */
@@ -198,6 +226,27 @@ struct kmem_cache *vm_area_cachep;
 /* SLAB cache for mm_struct structures (tsk->mm) */
 static struct kmem_cache *mm_cachep;
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+static void account_kernel_stack(struct task_thread_stack *stack, int account)
+{
+	struct zone *zone = page_zone(virt_to_page(stack));
+
+	mod_zone_page_state(zone, NR_KERNEL_STACK, account);
+}
+
+void free_task(struct task_struct *tsk)
+{
+	struct task_thread_struct *tsk_ti;
+	tsk_ti = container_of(tsk, struct task_thread_struct, task);
+
+	account_kernel_stack(tsk->stack, -1);
+	rt_mutex_debug_task_free(tsk);
+	ftrace_graph_exit_task(tsk);
+	put_seccomp_filter(tsk);
+	arch_release_task_struct(tsk);
+	free_task_thread_struct(tsk_ti);
+}
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 static void account_kernel_stack(struct thread_info *ti, int account)
 {
 	struct zone *zone = page_zone(virt_to_page(ti));
@@ -216,6 +265,7 @@ void free_task(struct task_struct *tsk)
 	arch_release_task_struct(tsk);
 	free_task_struct(tsk);
 }
+#endif
 EXPORT_SYMBOL(free_task);
 
 static inline void free_signal_struct(struct signal_struct *sig)
@@ -255,10 +305,25 @@ void __init fork_init(unsigned long mempages)
 #ifndef ARCH_MIN_TASKALIGN
 #define ARCH_MIN_TASKALIGN	L1_CACHE_BYTES
 #endif
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	/* create a slab on which task_thread_structs can be allocated */
+	task_thread_struct_cachep =
+		kmem_cache_create("task_thread_struct",
+				  sizeof(struct task_thread_struct),
+				  ARCH_MIN_TASKALIGN, SLAB_PANIC | SLAB_NOTRACK,
+				  NULL);
+
+	/* create a slab on which task stacks can be allocated */
+	task_thread_stack_cache =
+		kmem_cache_create("task_thread_stack",
+				  sizeof(struct task_thread_stack),
+				  sizeof(struct task_thread_stack), 0, NULL);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	/* create a slab on which task_structs can be allocated */
 	task_struct_cachep =
 		kmem_cache_create("task_struct", sizeof(struct task_struct),
 			ARCH_MIN_TASKALIGN, SLAB_PANIC | SLAB_NOTRACK, NULL);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 #endif
 
 	/* do the arch specific task caches init */
@@ -301,12 +366,27 @@ int __attribute__((weak)) arch_dup_task_struct(struct task_struct *dst,
 
 static struct task_struct *dup_task_struct(struct task_struct *orig)
 {
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	struct task_thread_struct *tsk_ti;
+	struct task_thread_stack *task_stack;
 	struct task_struct *tsk;
+#else
 	struct thread_info *ti;
+#endif
 	unsigned long *stackend;
 	int node = tsk_fork_get_node(orig);
 	int err;
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	tsk_ti = alloc_task_thread_struct_node(node);
+	if (!tsk_ti)
+		return NULL;
+	tsk = &tsk_ti->task;
+
+	task_stack = alloc_task_thread_stack_node(node);
+	if (!task_stack)
+		goto free_tsk_ti;
+#else
 	tsk = alloc_task_struct_node(node);
 	if (!tsk)
 		return NULL;
@@ -314,12 +394,21 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	ti = alloc_thread_info_node(tsk, node);
 	if (!ti)
 		goto free_tsk;
+#endif
 
 	err = arch_dup_task_struct(tsk, orig);
 	if (err)
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+		goto free_stack;
+#else
 		goto free_ti;
+#endif
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	tsk->stack = task_stack;
+#else
 	tsk->stack = ti;
+#endif
 
 	setup_thread_stack(tsk, orig);
 	clear_user_return_notifier(tsk);
@@ -342,14 +431,25 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	tsk->splice_pipe = NULL;
 	tsk->task_frag.page = NULL;
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+	account_kernel_stack(task_stack, 1);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	account_kernel_stack(ti, 1);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 
 	return tsk;
 
+#ifdef CONFIG_ARCH_TASK_THREAD_MERGED
+free_stack:
+	free_task_thread_stack(task_stack);
+free_tsk_ti:
+	free_task_thread_struct(tsk_ti);
+#else /* CONFIG_ARCH_TASK_THREAD_MERGED */
 free_ti:
 	free_thread_info(ti);
 free_tsk:
 	free_task_struct(tsk);
+#endif /* CONFIG_ARCH_TASK_THREAD_MERGED */
 	return NULL;
 }
 
